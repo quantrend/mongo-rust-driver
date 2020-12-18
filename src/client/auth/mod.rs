@@ -1,7 +1,7 @@
 //! Contains the types needed to specify the auth configuration for a
 //! [`Client`](struct.Client.html).
 
-#[cfg(feature = "tokio-runtime")]
+// #[cfg(feature = "tokio-runtime")]
 mod aws;
 mod sasl;
 mod scram;
@@ -83,7 +83,7 @@ pub enum AuthMechanism {
     ///
     /// Note: Only server versions 4.4+ support AWS authentication. Additionally, the driver only
     /// supports AWS authentication with the tokio runtime.
-    #[cfg(feature = "tokio-runtime")]
+    // #[cfg(feature = "tokio-runtime")]
     MongoDbAws,
 }
 
@@ -122,7 +122,7 @@ impl AuthMechanism {
                 };
                 Ok(())
             }
-            #[cfg(feature = "tokio-runtime")]
+            // #[cfg(feature = "tokio-runtime")]
             AuthMechanism::MongoDbAws => {
                 if credential.username.is_some() && credential.password.is_none() {
                     return Err(ErrorKind::ArgumentError {
@@ -146,7 +146,7 @@ impl AuthMechanism {
             AuthMechanism::MongoDbX509 => MONGODB_X509_STR,
             AuthMechanism::Gssapi => GSSAPI_STR,
             AuthMechanism::Plain => PLAIN_STR,
-            #[cfg(feature = "tokio-runtime")]
+            // #[cfg(feature = "tokio-runtime")]
             AuthMechanism::MongoDbAws => MONGODB_AWS_STR,
         }
     }
@@ -159,7 +159,7 @@ impl AuthMechanism {
             AuthMechanism::ScramSha1 | AuthMechanism::ScramSha256 | AuthMechanism::MongoDbCr => {
                 uri_db.unwrap_or("admin")
             }
-            #[cfg(feature = "tokio-runtime")]
+            // #[cfg(feature = "tokio-runtime")]
             AuthMechanism::MongoDbAws => "$external",
             _ => "",
         }
@@ -182,7 +182,7 @@ impl AuthMechanism {
                     .authenticate_stream(stream, credential)
                     .await
             }
-            #[cfg(feature = "tokio-runtime")]
+            // #[cfg(feature = "tokio-runtime")]
             AuthMechanism::MongoDbAws => {
                 aws::authenticate_stream(stream, credential, http_client).await
             }
@@ -212,14 +212,13 @@ impl FromStr for AuthMechanism {
             GSSAPI_STR => Ok(AuthMechanism::Gssapi),
             PLAIN_STR => Ok(AuthMechanism::Plain),
 
-            #[cfg(feature = "tokio-runtime")]
+            // #[cfg(feature = "tokio-runtime")]
             MONGODB_AWS_STR => Ok(AuthMechanism::MongoDbAws),
-            #[cfg(not(feature = "tokio-runtime"))]
-            MONGODB_AWS_STR => Err(ErrorKind::ArgumentError {
-                message: "MONGODB-AWS auth is only supported with the tokio runtime".into(),
-            }
-            .into()),
-
+            // #[cfg(not(feature = "tokio-runtime"))]
+            // MONGODB_AWS_STR => Err(ErrorKind::ArgumentError {
+            //     message: "MONGODB-AWS auth is only supported with the tokio runtime".into(),
+            // }
+            // .into()),
             _ => Err(ErrorKind::ArgumentError {
                 message: format!("invalid mechanism string: {}", str),
             }

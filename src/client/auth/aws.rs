@@ -8,16 +8,15 @@ use crate::{
     client::auth::{
         self,
         sasl::{SaslContinue, SaslResponse, SaslStart},
-        AuthMechanism,
-        Credential,
+        AuthMechanism, Credential,
     },
     cmap::Connection,
     error::{Error, Result},
     runtime::HttpClient,
 };
 
-const AWS_ECS_IP: &str = "169.254.170.2";
-const AWS_EC2_IP: &str = "169.254.169.254";
+// const AWS_ECS_IP: &str = "169.254.170.2";
+// const AWS_EC2_IP: &str = "169.254.169.254";
 const AWS_LONG_DATE_FMT: &str = "%Y%m%dT%H%M%SZ";
 
 /// Performs MONGODB-AWS authentication for a given stream.
@@ -119,7 +118,7 @@ struct AwsCredential {
 impl AwsCredential {
     /// Derives the credentials for an authentication attempt given the set of credentials the user
     /// passed in.
-    async fn get(credential: &Credential, http_client: &HttpClient) -> Result<Self> {
+    async fn get(credential: &Credential, _http_client: &HttpClient) -> Result<Self> {
         let access_key = credential
             .username
             .clone()
@@ -135,8 +134,8 @@ impl AwsCredential {
             .map(|s| s.to_string())
             .or_else(|| std::env::var("AWS_SESSION_TOKEN").ok());
 
-        let found_access_key = access_key.is_some();
-        let found_secret_key = secret_key.is_some();
+        let _found_access_key = access_key.is_some();
+        let _found_secret_key = secret_key.is_some();
 
         // If we have an access key and secret key, we can continue with the credentials we've
         // found.
@@ -148,72 +147,77 @@ impl AwsCredential {
             });
         }
 
-        if found_access_key || found_secret_key {
-            return Err(Error::authentication_error(
-                "MONGODB-AWS",
-                "cannot specify only one of access key and secret key; either both or neither \
-                 must be provided",
-            ));
-        }
+        Err(Error::authentication_error(
+            "MONGODB-AWS",
+            "access key and secret key must be provided",
+        ))
 
-        if session_token.is_some() {
-            return Err(Error::authentication_error(
-                "MONGODB-AWS",
-                "cannot specify session token without both access key and secret key",
-            ));
-        }
+        // if found_access_key || found_secret_key {
+        //     return Err(Error::authentication_error(
+        //         "MONGODB-AWS",
+        //         "cannot specify only one of access key and secret key; either both or neither \
+        //          must be provided",
+        //     ));
+        // }
 
-        if let Ok(relative_uri) = std::env::var("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI") {
-            Self::get_from_ecs(relative_uri, http_client).await
-        } else {
-            Self::get_from_ec2(http_client).await
-        }
+        // if session_token.is_some() {
+        //     return Err(Error::authentication_error(
+        //         "MONGODB-AWS",
+        //         "cannot specify session token without both access key and secret key",
+        //     ));
+        // }
+
+        // if let Ok(relative_uri) = std::env::var("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI") {
+        //     Self::get_from_ecs(relative_uri, http_client).await
+        // } else {
+        //     Self::get_from_ec2(http_client).await
+        // }
     }
 
     /// Obtains credentials from the ECS endpoint.
-    async fn get_from_ecs(relative_uri: String, http_client: &HttpClient) -> Result<Self> {
-        // Use the local IP address that AWS uses for ECS agents.
-        let uri = format!("http://{}/{}", AWS_ECS_IP, relative_uri);
+    // async fn get_from_ecs(relative_uri: String, http_client: &HttpClient) -> Result<Self> {
+    //     // Use the local IP address that AWS uses for ECS agents.
+    //     let uri = format!("http://{}/{}", AWS_ECS_IP, relative_uri);
 
-        http_client
-            .get_and_deserialize_json(&uri, None)
-            .await
-            .map_err(|_| Error::unknown_authentication_error("MONGODB-AWS"))
-    }
+    //     http_client
+    //         .get_and_deserialize_json(&uri, None)
+    //         .await
+    //         .map_err(|_| Error::unknown_authentication_error("MONGODB-AWS"))
+    // }
 
-    /// Obtains temporary credentials for an EC2 instance to use for authentication.
-    async fn get_from_ec2(http_client: &HttpClient) -> Result<Self> {
-        let temporary_token = http_client
-            .put_and_read_string(
-                &format!("http://{}/latest/api/token", AWS_EC2_IP),
-                &[("X-aws-ec2-metadata-token-ttl-seconds", "30")],
-            )
-            .await
-            .map_err(|_| Error::unknown_authentication_error("MONGODB-AWS"))?;
+    // /// Obtains temporary credentials for an EC2 instance to use for authentication.
+    // async fn get_from_ec2(http_client: &HttpClient) -> Result<Self> {
+    //     let temporary_token = http_client
+    //         .put_and_read_string(
+    //             &format!("http://{}/latest/api/token", AWS_EC2_IP),
+    //             &[("X-aws-ec2-metadata-token-ttl-seconds", "30")],
+    //         )
+    //         .await
+    //         .map_err(|_| Error::unknown_authentication_error("MONGODB-AWS"))?;
 
-        let role_name_uri = format!(
-            "http://{}/latest/meta-data/iam/security-credentials/",
-            AWS_EC2_IP
-        );
+    //     let role_name_uri = format!(
+    //         "http://{}/latest/meta-data/iam/security-credentials/",
+    //         AWS_EC2_IP
+    //     );
 
-        let role_name = http_client
-            .get_and_read_string(
-                &role_name_uri,
-                &[("X-aws-ec2-metadata-token", &temporary_token[..])],
-            )
-            .await
-            .map_err(|_| Error::unknown_authentication_error("MONGODB-AWS"))?;
+    //     let role_name = http_client
+    //         .get_and_read_string(
+    //             &role_name_uri,
+    //             &[("X-aws-ec2-metadata-token", &temporary_token[..])],
+    //         )
+    //         .await
+    //         .map_err(|_| Error::unknown_authentication_error("MONGODB-AWS"))?;
 
-        let credential_uri = format!("{}/{}", role_name_uri, role_name);
+    //     let credential_uri = format!("{}/{}", role_name_uri, role_name);
 
-        http_client
-            .get_and_deserialize_json(
-                &credential_uri,
-                &[("X-aws-ec2-metadata-token", &temporary_token[..])],
-            )
-            .await
-            .map_err(|_| Error::unknown_authentication_error("MONGODB-AWS"))
-    }
+    //     http_client
+    //         .get_and_deserialize_json(
+    //             &credential_uri,
+    //             &[("X-aws-ec2-metadata-token", &temporary_token[..])],
+    //         )
+    //         .await
+    //         .map_err(|_| Error::unknown_authentication_error("MONGODB-AWS"))
+    // }
 
     /// Computes the signed authorization header for the credentials to send to the server in a sasl
     /// payload.
