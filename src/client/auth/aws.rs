@@ -9,8 +9,7 @@ use crate::{
         auth::{
             self,
             sasl::{SaslContinue, SaslResponse, SaslStart},
-            AuthMechanism,
-            Credential,
+            AuthMechanism, Credential,
         },
         options::ServerApi,
     },
@@ -65,6 +64,7 @@ pub(super) async fn authenticate_stream(
     server_first.validate(&nonce)?;
 
     let aws_credential = AwsCredential::get(credential, http_client).await?;
+    println!("Credential: {:#?}", aws_credential);
 
     let date = Utc::now();
 
